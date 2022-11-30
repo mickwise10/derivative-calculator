@@ -143,41 +143,42 @@ public class Polynomial {
 		if (thisDegree < otherDegree) { // Check if division is possible
 			return null;
 		}
+		/* The degree of the multiplier is the difference in degrees from 
+		 * the definition of polynomial multiplication */
 		int multiplierDegree = thisDegree - otherDegree;
 		double[] multiplierCoefficients = new double[multiplierDegree + 1];
 		ArrayList <Double> remainderCoefficients = new ArrayList <Double>();
 		copyArrayIntoArrayList(remainderCoefficients, coefficients);
-		for (int i = 0; i <= multiplierDegree; i++) { // Begin devision process
+		int index = 0;
+		while (remainderCoefficients.size() > otherDegree) { // Begin devision process
+			// Remove zeros from remainder coefficients
+			if (remainderCoefficients.get(remainderCoefficients.size() - 1) == 0) {
+				index += removeZeros(remainderCoefficients);
+				break;
+			}
+			/* Normalization n constant will force 
+			 * n*otherPol.coefficients[0] == remandierCoefficients[0] */
 			double normalizationConstant = 
-					(remainderCoefficients.get(thisDegree - i) / 
+					(remainderCoefficients.get(thisDegree - index) / 
 							otherPol.coefficients[0]);
-			multiplierCoefficients[i] = normalizationConstant;
-			remainderCoefficients.remove(thisDegree - i); // Remove biggest power from remainder
+			multiplierCoefficients[index] = normalizationConstant;
+			// Remove biggest power from remainder because we forced it'll become 0
+			remainderCoefficients.remove(thisDegree - index); 
+			index++;
 			for ( int j = 1; j <= otherDegree; j++) { // Calculate the new remainder
+				// Subtract elements in the same positions multiplied by normalization constant
 				double currentElement = remainderCoefficients.get(remainderCoefficients.size() - j);
 				remainderCoefficients.set(remainderCoefficients.size() - j, 
 						currentElement - normalizationConstant*otherPol.coefficients[j]);
 			}
 		}
+		removeZeros(remainderCoefficients); // Remove excess zeros
+		// Initialize a polynomial array to return the remainder and multiplier
 		Polynomial multiplier = new Polynomial(multiplierCoefficients);
 		double[] remainderArray = createArrayFromList(remainderCoefficients);
 		Polynomial remainder = new Polynomial(remainderArray);
-		if (checkIfZero(remainder)) { // Check if division is exact
-			double[] zeroCoefficients = {0};
-			Polynomial zeroPolynomial = new Polynomial(zeroCoefficients);
-			remainder = zeroPolynomial;
-		}
 		Polynomial[] multiplierAndRemainder = {multiplier, remainder};
 		return multiplierAndRemainder;
-	}
-	
-	private static boolean checkIfZero(Polynomial pol) {
-		for (int i = 0; i < pol.coefficients.length; i++) {
-			if (pol.coefficients[i] != 0) {
-				return false;
-			}
-		}
-		return true;
 	}
 	
 	private static void copyArrayIntoArrayList(ArrayList <Double> list, double[] arr) {
@@ -194,27 +195,48 @@ public class Polynomial {
 		return result;
 	}
 	
+	// Function that removes zeros and returns the amounts removed
+	private static int removeZeros(ArrayList <Double> list) {
+		int k  = list.size() - 1;
+		while(list.get(k) == 0 && k > 0) { 
+			list.remove(k);
+			k--;
+		}
+		return list.size() - k;
+	}
+	
+	/**
+	 * 
+	 * @param otherPol
+	 * @pre otherPol.coefficients.length < coefficients.length
+	 */
 	public Polynomial[] findGcd(Polynomial otherPol) { /* Returns an array of with the gcd as the first 
 	 													  element and Bezout coefficients as the 
 	 													  second and third */
-		if(otherPol.coefficients.length > coefficients.length) {
-			return null;
-		}
 		ArrayList <Polynomial> multipliers = new ArrayList<Polynomial>();
 		Polynomial currentRemainder = otherPol;
 		Polynomial lastRemainder = this;
 		Polynomial gcd;
-		while (lastRemainder.coefficients.length > 1 && !checkIfZero(currentRemainder)) {
+		while (currentRemainder.coefficients.length > 1) { // Find gcd using Euclids algorithm
 			Polynomial[] currentArray = lastRemainder.polynomialDivision(currentRemainder);
 			multipliers.add(currentArray[0].scalerMultiplication(-1));
 			lastRemainder = currentRemainder;
-			currentRemainder = currentArray[1];	
+			currentRemainder = currentArray[1];
 		}
-		gcd = lastRemainder;
+		if (currentRemainder.coefficients[0] != 0) { // If gcd is constant normalize it
+			currentRemainder = 
+					currentRemainder.scalerMultiplication(1/currentRemainder.coefficients[0]);
+		}
+		if (currentRemainder.coefficients[0] == 0) {
+			gcd = lastRemainder;
+		}
+		else {
+			gcd = currentRemainder;
+		}
 		double[] onePol = {1};
 		Polynomial firstBezoutCoeff = new Polynomial(onePol);
 		Polynomial secondBezoutCoeff = multipliers.get(multipliers.size() - 1);
-		for (int i = 0; i < multipliers.size(); i++) {
+		for (int i = 1; i < multipliers.size(); i++) {
 			Polynomial temp = firstBezoutCoeff;
 			firstBezoutCoeff = secondBezoutCoeff;
 			secondBezoutCoeff = temp.addition(secondBezoutCoeff.
